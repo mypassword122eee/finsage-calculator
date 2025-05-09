@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finsage Investment Calculator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+ 		 width: 100%;
+		 max-width: 800px;
+  		 margin: auto;
+  		background: white;
+ 		 padding: 20px;
+ 		 border-radius: 10px;
+ 		 box-shadow: 0 0 15px rgba(0,0,0,0.1);
+	}
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      background: #e0e0e0;
+      border-radius: 5px 5px 0 0;
+      border: 1px solid #ccc;
+      margin-right: 2px;
+    }
+    .tab.active {
+      background: #4CAF50;
+      color: white;
+      font-weight: bold;
+    }
+    .content {
+      display: none;
+      padding: 15px;
+      border: 1px solid #ccc;
+      border-top: none;
+      border-radius: 0 0 10px 10px;
+    }
+    .content.active {
+      display: block;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+    }
+    input {
+     width: 100%;
+     padding: 8px;
+     margin-top: 5px;
+     border: 1px solid #ccc;
+     border-radius: 5px;
+     }
+
+    button {
+      margin-top: 15px;
+      padding: 10px 15px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    .result {
+      margin-top: 15px;
+      background: #e6f9e6;
+      padding: 10px;
+      border: 1px solid #a2d5a2;
+      border-radius: 5px;
+    }
+    canvas {
+      margin-top: 20px;
+      max-height: 300px;
+    }
+    @media screen and (max-width: 600px) {
+  canvas {
+    max-height: 250px; /* Adjusts chart size for small screens */
+  }
+}
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2 style="text-align:center">Finsage – Investment Calculator (SIP, Lumpsum, Yearly SIP)</h2>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab(0)">SIP Calculator</div>
+      <div class="tab" onclick="switchTab(1)">Lumpsum Calculator</div>
+      <div class="tab" onclick="switchTab(2)">Yearly SIP Calculator</div>
+    </div>
+
+    <div id="sip" class="content active">
+      <label>Monthly SIP Amount (₹ / प्रति माह)</label>
+      <input id="sipAmount" type="number">
+      <label>Investment Duration (Years / वर्षों)</label>
+      <input id="sipYears" type="number">
+      <label>Expected Return Rate (%) / अनुमानित लाभ</label>
+      <input id="sipRate" type="number">
+      <label>Annual Increase in SIP (%) / SIP में वार्षिक वृद्धि</label>
+      <input id="sipIncrease" type="number" value="0">
+      <button onclick="calculateSIP()">Calculate / गणना करें</button>
+      <div class="result" id="sipResult"></div>
+      <canvas id="sipChart"></canvas>
+    </div>
+
+    <div id="lumpsum" class="content">
+      <label>Lumpsum Investment (₹ / एकमुश्त निवेश)</label>
+      <input id="lumpAmount" type="number">
+      <label>Investment Duration (Years / वर्षों)</label>
+      <input id="lumpYears" type="number">
+      <label>Expected Return Rate (%) / अनुमानित लाभ</label>
+      <input id="lumpRate" type="number">
+      <button onclick="calculateLumpsum()">Calculate / गणना करें</button>
+      <div class="result" id="lumpResult"></div>
+      <canvas id="lumpChart"></canvas>
+    </div>
+
+    <div id="yearlySIP" class="content">
+      <label>Yearly SIP Amount (₹ / प्रति वर्ष)</label>
+      <input id="ysipAmount" type="number">
+      <label>Investment Duration (Years / वर्षों)</label>
+      <input id="ysipYears" type="number">
+      <label>Expected Return Rate (%) / अनुमानित लाभ</label>
+      <input id="ysipRate" type="number">
+      <label>Annual Increase in SIP (%) / SIP में वार्षिक वृद्धि</label>
+      <input id="ysipIncrease" type="number" value="0">
+      <button onclick="calculateYearlySIP()">Calculate / गणना करें</button>
+      <div class="result" id="ysipResult"></div>
+      <canvas id="ysipChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    function switchTab(index) {
+      document.querySelectorAll('.tab').forEach((tab, i) => {
+        tab.classList.toggle('active', i === index);
+        document.querySelectorAll('.content')[i].classList.toggle('active', i === index);
+      });
+    }
+
+    let sipChart, lumpChart, ysipChart;
+
+    function renderChart(canvasId, labels, invested, value) {
+      const ctx = document.getElementById(canvasId);
+      const chartData = {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Total Invested',
+            data: invested,
+            borderColor: '#2196f3',
+            backgroundColor: 'rgba(33, 150, 243, 0.2)',
+            fill: true,
+          },
+          {
+            label: 'Final Value',
+            data: value,
+            borderColor: '#4CAF50',
+            backgroundColor: 'rgba(76, 175, 80, 0.2)',
+            fill: true,
+          }
+        ]
+      };
+      const chartConfig = {
+        type: 'line',
+        data: chartData,
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'top' },
+            title: { display: true, text: 'Investment Growth Over Time' }
+          }
+        },
+      };
+      if (canvasId === 'sipChart') { if (sipChart) sipChart.destroy(); sipChart = new Chart(ctx, chartConfig); }
+      if (canvasId === 'lumpChart') { if (lumpChart) lumpChart.destroy(); lumpChart = new Chart(ctx, chartConfig); }
+      if (canvasId === 'ysipChart') { if (ysipChart) ysipChart.destroy(); ysipChart = new Chart(ctx, chartConfig); }
+    }
+
+    function calculateSIP() {
+      let amount = parseFloat(document.getElementById('sipAmount').value);
+      let years = parseFloat(document.getElementById('sipYears').value);
+      let rate = parseFloat(document.getElementById('sipRate').value) / 100 / 12;
+      let increase = parseFloat(document.getElementById('sipIncrease').value) / 100;
+      let totalInvested = 0, futureValue = 0;
+      let investedArr = [], valueArr = [], labels = [];
+
+      for (let y = 1; y <= years; y++) {
+        for (let m = 1; m <= 12; m++) {
+          totalInvested += amount;
+          futureValue += amount * Math.pow(1 + rate, (years * 12 - ((y - 1) * 12 + m - 1)));
+        }
+        labels.push('Year ' + y);
+        investedArr.push(totalInvested.toFixed(2));
+        valueArr.push(futureValue.toFixed(2));
+        amount += amount * increase;
+      }
+
+      document.getElementById('sipResult').innerHTML =
+        `Total Invested / कुल निवेश: ₹${totalInvested.toFixed(2)}<br>` +
+        `Final Value / अंतिम राशि: ₹${futureValue.toFixed(2)}<br>` +
+        `Wealth Gained / प्राप्त लाभ: ₹${(futureValue - totalInvested).toFixed(2)}`;
+
+      renderChart('sipChart', labels, investedArr, valueArr);
+    }
+
+    function calculateLumpsum() {
+      let amount = parseFloat(document.getElementById('lumpAmount').value);
+      let years = parseFloat(document.getElementById('lumpYears').value);
+      let rate = parseFloat(document.getElementById('lumpRate').value) / 100;
+
+      let futureValue = amount * Math.pow(1 + rate, years);
+      let investedArr = [], valueArr = [], labels = [];
+
+      for (let y = 1; y <= years; y++) {
+        investedArr.push(amount.toFixed(2));
+        valueArr.push((amount * Math.pow(1 + rate, y)).toFixed(2));
+        labels.push('Year ' + y);
+      }
+
+      document.getElementById('lumpResult').innerHTML =
+        `Invested Amount / निवेश: ₹${amount.toFixed(2)}<br>` +
+        `Final Value / अंतिम राशि: ₹${futureValue.toFixed(2)}<br>` +
+        `Wealth Gained / प्राप्त लाभ: ₹${(futureValue - amount).toFixed(2)}`;
+
+      renderChart('lumpChart', labels, investedArr, valueArr);
+    }
+
+    function calculateYearlySIP() {
+      let amount = parseFloat(document.getElementById('ysipAmount').value);
+      let years = parseFloat(document.getElementById('ysipYears').value);
+      let rate = parseFloat(document.getElementById('ysipRate').value) / 100;
+      let increase = parseFloat(document.getElementById('ysipIncrease').value) / 100;
+      let totalInvested = 0, futureValue = 0;
+      let investedArr = [], valueArr = [], labels = [];
+
+      for (let y = 1; y <= years; y++) {
+        totalInvested += amount;
+        futureValue += amount * Math.pow(1 + rate, years - y);
+        investedArr.push(totalInvested.toFixed(2));
+        valueArr.push(futureValue.toFixed(2));
+        labels.push('Year ' + y);
+        amount += amount * increase;
+      }
+
+      document.getElementById('ysipResult').innerHTML =
+        `Total Invested / कुल निवेश: ₹${totalInvested.toFixed(2)}<br>` +
+        `Final Value / अंतिम राशि: ₹${futureValue.toFixed(2)}<br>` +
+        `Wealth Gained / प्राप्त लाभ: ₹${(futureValue - totalInvested).toFixed(2)}`;
+
+      renderChart('ysipChart', labels, investedArr, valueArr);
+    }
+  </script>
+</body>
+</html>
